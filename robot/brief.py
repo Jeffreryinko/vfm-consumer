@@ -106,6 +106,7 @@ def news_rows(ind):
     pick = pick[:170]
     rows = [f"{n} | {CCN.get(x.get('cc'), x.get('cc'))} | {KIND.get(x.get('kind'), '')} | {x.get('src', '')[:24]} | {(x.get('ko') or x['t'])[:120]}"
             + (f" (원문: {x['t'][:80]})" if x.get('ko') and x.get('ko') != x['t'] and x.get('cc') not in ('kr',) else "")
+            + (f" — {x['desc'][:110]}" if x.get('desc') else "")
             for n, x in enumerate(pick)]
     return pick, rows
 
@@ -196,7 +197,8 @@ def run(ind, dry=False):
         out = []
         for i in ids:
             if isinstance(i, int) and 0 <= i < len(pick):
-                x = pick[i]; out.append({"id": x["id"], "src": x.get("src", ""), "cc": x.get("cc", ""), "t": x.get("ko") or x["t"], "url": x.get("url", ""), "kind": x.get("kind", "")})
+                x = pick[i]; out.append({"id": x["id"], "src": x.get("src", ""), "cc": x.get("cc", ""), "t": x.get("ko") or x["t"], "url": x.get("url", ""), "kind": x.get("kind", ""),
+                                         **({"img": x["img"]} if x.get("img") else {}), **({"desc": x["desc"]} if x.get("desc") and x.get("cc") == "kr" else {})})
         return out
     items = []
     for it in o.get("items") or []:
@@ -209,6 +211,8 @@ def run(ind, dry=False):
                       "bg": [{"k": b["k"], "id": b["id"], "t": li[b["k"]][b["id"]]} for b in (it.get("bg") or [])[:3]
                              if isinstance(b, dict) and b.get("k") in li and b.get("id") in li[b["k"]]],
                       "src": srcs(ids)[:8]})
+        im = next((z["img"] for z in items[-1]["src"] if z.get("img")), "")
+        if im: items[-1]["img"] = im
     items.sort(key=lambda x: x["press"])
     def mini(arr): return [{"t": S(x.get("t"), 60), "one": S(x.get("one"), 220), "src": srcs(x.get("ids") or [])[:4]} for x in (arr or []) if isinstance(x, dict) and x.get("t")][:3]
     doc = {"id": t.strftime("%Y-%m-%d"), "label": label, "at": t.isoformat(timespec="minutes"), "by": who.split(":")[0], "model": who,

@@ -39,6 +39,39 @@ def gnews(cc, q):
     return out[:25]
 
 
+BING_MKT = {"kr": "ko-KR", "us": "en-US", "gb": "en-GB", "jp": "ja-JP", "cn": "zh-HK", "tw": "zh-TW", "fr": "fr-FR", "de": "de-DE",
+            "ae": "ar-SA", "sa": "ar-SA", "in": "en-IN", "sg": "en-SG"}
+
+
+def _real(link):
+    """빙 클릭 주소에 들어 있는 진짜 기사 주소를 꺼냄"""
+    try:
+        u = urllib.parse.parse_qs(urllib.parse.urlparse(link).query).get("url", [""])[0]
+        if u.startswith("http"): return u
+    except Exception: pass
+    return link.replace("http://", "https://")
+
+
+def bing(cc, q):
+    """빙 뉴스 RSS (공개 피드) — 기사로 바로 가는 주소 + 사진 + 앞부분 요약이 같이 옴"""
+    q2 = re.sub(r"\bsite:(\S+)", r"site:\1", q.replace(" OR ", " OR "))
+    url = f"https://www.bing.com/news/search?q={urllib.parse.quote(q2)}&format=rss&mkt={BING_MKT.get(cc, 'en-US')}&qft=interval%3d%227%22"
+    raw = C.get(url, timeout=25)
+    if not raw.lstrip().startswith("<?xml"): raise RuntimeError("빙이 피드 대신 화면을 줌")
+    txt = re.sub(r"<rss[^>]*>", '<rss version="2.0" xmlns:News="urn:bing">', raw, count=1)
+    root = ET.fromstring(txt)
+    out = []
+    for it in root.iter("item"):
+        g = {c.tag.split("}")[-1]: (c.text or "") for c in it}
+        try: at = parsedate_to_datetime(g.get("pubDate")).astimezone(C.KST)
+        except Exception: at = C.now()
+        if at < C.now() - timedelta(days=3): continue
+        img = g.get("Image", "").replace("http://", "https://")
+        out.append({"t": C.clean(g.get("title")), "src": C.clean(g.get("Source", "")).replace(" on MSN", ""), "url": _real(g.get("link", "")),
+                    "at": at.isoformat(timespec="minutes"), "dom": "", "img": (img + "&w=640&h=400&c=14") if img else "", "desc": C.clean(g.get("description"), 260)})
+    return out[:20]
+
+
 def reddit(sub):
     xml = C.get(f"https://www.reddit.com/r/{sub}/top/.rss?t=day&limit=15", timeout=25, ua=C.BOT_UA)
     ns = {"a": "http://www.w3.org/2005/Atom"}
@@ -59,27 +92,37 @@ def run(ind, qs):
     old = C.rj(path, {}) or {}
     items = {x["id"]: x for x in old.get("items", [])}
     seen = {norm(x["t"]) for x in items.values()}
+    bynorm = {norm(x["t"]): x for x in items.values()}
     got, okc, fail = [], 0, 0
 
     def job(q):
         cc, query, kind = q
-        try:
-            rows = gnews(cc, query); C.mark(f"news:{ind}:{cc}:{query[:24]}", True, len(rows)); return cc, query, kind, rows
+        rows, ok = [], False
+        try:                                               # 빙 먼저 (사진·바로 가는 주소·요약)
+            b = bing(cc, query); rows += b; ok = True; C.mark(f"bing:{ind}:{cc}:{query[:24]}", True, len(b))
         except Exception as e:
-            C.mark(f"news:{ind}:{cc}:{query[:24]}", False, e); return cc, query, kind, None
+            C.mark(f"bing:{ind}:{cc}:{query[:24]}", False, e)
+        try:                                               # 구글은 빠진 것을 메움
+            g = gnews(cc, query); rows += g; ok = True; C.mark(f"news:{ind}:{cc}:{query[:24]}", True, len(g))
+        except Exception as e:
+            C.mark(f"news:{ind}:{cc}:{query[:24]}", False, e)
+        return cc, query, kind, rows if ok else None
 
-    with ThreadPoolExecutor(6) as ex:
+    with ThreadPoolExecutor(5) as ex:
         for cc, query, kind, rows in ex.map(job, qs):
             if rows is None: fail += 1; continue
             okc += 1
             for r in rows:
                 k = norm(r["t"])
+                if k in seen and r.get("img") and k in bynorm and not bynorm[k].get("img"):   # 전에 받은 같은 기사에 사진·바로 가는 주소를 채움
+                    bynorm[k].update({"img": r["img"], "url": r["url"], **({"desc": r["desc"]} if r.get("desc") else {})})
                 if not k or k in seen or re.match(r"^\s*[\[【(](잡담|수다|질문|정보|공략|사진|자랑|유머|일상|후기|짤|팁)", r["t"]): continue
                 seen.add(k)
                 low = (r["src"] + " " + r["dom"] + " " + r["t"]).lower()
                 kd = "press" if any(p in low for p in S.PRESS) else kind
                 got.append({"id": C.sid(r["url"] or r["t"]), "t": r["t"], "src": r["src"], "url": r["url"], "at": r["at"],
-                            "cc": cc, "rg": S.REGION.get(cc, "ww"), "kind": kd, "q": query})
+                            "cc": cc, "rg": S.REGION.get(cc, "ww"), "kind": kd, "q": query,
+                            **({"img": r["img"]} if r.get("img") else {}), **({"desc": r["desc"]} if r.get("desc") else {})})
     for sub in S.REDDIT.get(ind, []):
         try:
             for r in reddit(sub):
@@ -98,7 +141,7 @@ def run(ind, qs):
     keep = sorted((x for x in items.values() if x.get("at", "") >= cut), key=lambda x: x.get("at", ""), reverse=True)
     C.wj(path, {"at": C.now().isoformat(timespec="minutes"), "n": len(keep), "items": keep})
     cut3 = (C.now() - timedelta(days=3)).isoformat()
-    slim = [{k: x.get(k) for k in ("id", "ko", "t", "src", "url", "at", "cc", "kind") if x.get(k)} for x in keep if x.get("at", "") >= cut3][:900]
+    slim = [{k: x.get(k) for k in ("id", "ko", "t", "src", "url", "at", "cc", "kind", "img", "desc") if x.get(k)} for x in keep if x.get("at", "") >= cut3][:900]
     C.wj(C.DATA / "news" / f"{ind}_recent.json", {"at": C.now().isoformat(timespec="minutes"), "items": slim})
     C.log(f"{ind}: 검색 {okc}개 성공 · {fail}개 실패 · 새 글 {len(got)} · 보관 {len(keep)}")
 
