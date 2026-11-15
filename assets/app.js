@@ -244,7 +244,7 @@
   }
   function homeMovers(rk) {
     if (!rk) return "";
-    var B = rk.boards || {}, pick = [["g.ios.kr.gross", "game"], ["g.gp.kr.gross", "game"], ["b.amz.us", "beauty"], ["b.q10.jp", "beauty"], ["g.ios.us.gross", "game"], ["g.ios.jp.gross", "game"]];
+    var B = rk.boards || {}, pick = [["g.ios.kr.gross", "game"], ["g.gp.kr.gross", "game"], ["b.amz.us", "beauty"], ["b.yt.kr", "beauty"], ["g.ios.us.gross", "game"], ["g.ios.jp.gross", "game"]];
     var out = [];
     pick.forEach(function (p) {
       var b = B[p[0]]; if (!b || !b.rows) return;
@@ -341,9 +341,9 @@
       ["g.ios.us.gross", "🇺🇸 매출"], ["g.gp.us.gross", "🇺🇸 구글 매출"], ["g.ios.us.free", "🇺🇸 인기"], ["g.ios.jp.gross", "🇯🇵 매출"], ["g.gp.jp.gross", "🇯🇵 구글 매출"], ["g.ios.jp.free", "🇯🇵 인기"],
       ["g.ios.cn.gross", "🇨🇳 앱스토어 매출"], ["g.ios.cn.free", "🇨🇳 인기"], ["g.ios.cn.new", "🇨🇳 신작"],
       ["g.ios.de.gross", "🇩🇪 매출"], ["g.ios.sa.gross", "🇸🇦 매출"], ["g.yt.kr", "▶️ 한국 게임 영상"], ["g.yt.us", "▶️ 미국 게임 영상"], ["twitch", "📺 트위치"]],
-    beauty: [["b.amz.us", "🇺🇸 아마존"], ["b.q10.jp", "🇯🇵 큐텐"], ["b.yt.kr", "▶️ 한국 뷰티 영상"], ["b.yt.us", "▶️ 미국 뷰티 영상"], ["kb", "🌏 해외의 K뷰티"]]
+    beauty: [["b.amz.us", "🇺🇸 아마존"], ["b.yt.kr", "▶️ 한국 뷰티 영상"], ["b.yt.us", "▶️ 미국 뷰티 영상"], ["kb", "🌏 해외의 K뷰티"]]
   };
-  var NOTE = { beauty: "올리브영·세포라·화해·티몰·더우인은 순위를 공개 자료로 내주지 않거나 로봇 접속을 막아서 못 가져옴. 이 곳들 소식은 브리핑 기사로 다루고, 한국 유행은 업계 지도의 네이버 검색량으로 봄.", game: "중국은 구글플레이가 없어서 애플 중국 앱스토어 순위로 봄 (TapTap은 공개 자료가 없어 뺐음)." };
+  var NOTE = { beauty: "올리브영·세포라·화해·큐텐·티몰·더우인은 순위를 공개 자료로 내주지 않거나 로봇 접속을 막아서 못 가져옴. 이 곳들 소식은 브리핑 기사로 다루고, 한국 유행은 업계 지도의 네이버 검색량으로 봄.", game: "중국은 구글플레이가 없어서 애플 중국 앱스토어 순위로 봄 (TapTap은 공개 자료가 없어 뺐음)." };
   function rankImg(x) {
     var adult = /성인|19금|18\+|hentai|adult/i.test((x.n || "") + (x.g || ""));
     return x.img ? '<img loading="lazy" src="' + esc(x.img) + '" alt=""' + (adult ? ' class="blur" title="눌러서 보기"' : "") + ' onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'ph\'}))">' : '<div class="ph"></div>';
@@ -380,7 +380,7 @@
     var kr = ((cs && cs.list) || []).filter(function (c) { return c.ind === "beauty" && c.cc === "kr"; });
     var keys = []; kr.forEach(function (c) { [c.n, c.en].concat(c.brands || []).forEach(function (k) { if (k && k.length >= 3) keys.push([k.toLowerCase(), c.n]); }); });
     var out = [];
-    ["b.amz.us", "b.q10.jp"].forEach(function (k) {
+    ["b.amz.us"].forEach(function (k) {
       var b = B[k]; if (!b) return;
       b.rows.forEach(function (x) { var t = (x.n + " " + (x.by || "")).toLowerCase(); var m = keys.find(function (kk) { return t.indexOf(kk[0]) >= 0; }); if (m) out.push(Object.assign({}, x, { src: b.t + " · " + m[1] })); });
     });

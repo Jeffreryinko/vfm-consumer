@@ -81,20 +81,6 @@ def amazon():
     return out
 
 
-def qoo10():
-    h = C.get("https://www.qoo10.jp/gmkt.inc/Bestsellers/?g=2", headers={"Accept-Language": "ja"})
-    out = []
-    for m in re.finditer(r'<a[^>]+class="tt"[^>]*title="([^"]+)"', h):
-        out.append({"r": len(out) + 1, "n": C.clean(m.group(1))})
-        if len(out) >= 50: break
-    if len(out) < 10:
-        for m in re.finditer(r'alt="([^"]{6,200})"\s+(?:data-)?src="(https://gd\.image-qoo10\.jp[^"]+)"', h):
-            out.append({"r": len(out) + 1, "n": C.clean(m.group(1)), "img": m.group(2)})
-            if len(out) >= 50: break
-    if len(out) < 10: raise RuntimeError(f"읽은 상품 {len(out)}개")
-    return out
-
-
 def youtube_trending(cat, cc):
     import os
     key = os.environ.get("YOUTUBE_API_KEY", "").strip()
@@ -118,7 +104,6 @@ def boards():
     B.append(("g.yt.kr", "game", "유튜브 한국 게임 인기 영상", lambda: youtube_trending(20, "kr")))
     B.append(("g.yt.us", "game", "유튜브 미국 게임 인기 영상", lambda: youtube_trending(20, "us")))
     B.append(("b.amz.us", "beauty", "아마존 미국 뷰티 베스트셀러", amazon))
-    B.append(("b.q10.jp", "beauty", "큐텐 일본 뷰티 베스트", qoo10))
     B.append(("b.yt.kr", "beauty", "유튜브 한국 뷰티·생활 인기 영상", lambda: youtube_trending(26, "kr")))
     B.append(("b.yt.us", "beauty", "유튜브 미국 뷰티·생활 인기 영상", lambda: youtube_trending(26, "us")))
     return B
