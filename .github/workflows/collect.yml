@@ -1,0 +1,72 @@
+name: 모으기 (뉴스 하루 2번 · 순위·주가·경제·반응 하루 1번)
+
+on:
+  schedule:
+    - cron: "20 20 * * *"   # 한국시간 05:20 — 전부 (아침 브리핑 전에)
+    - cron: "20 7 * * *"    # 한국시간 16:20 — 뉴스만
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/kick/collect']   # 이 파일을 바꿔 올리면 바로 한 번 돌림
+
+concurrency:
+  group: data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: npm install --no-save google-play-scraper@10 >/dev/null 2>&1 || echo "구글플레이 도구 설치 실패 — 넘어감"
+      - name: 뉴스
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python robot/collect_news.py || echo "뉴스 실패"
+      - name: 순위
+        if: github.event.schedule != '20 7 * * *'
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: python robot/collect_rank.py || echo "순위 실패"
+      - name: 주가·공시·경제
+        if: github.event.schedule != '20 7 * * *'
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          SEC_CONTACT_EMAIL: ${{ secrets.SEC_CONTACT_EMAIL }}
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+        run: python robot/collect_market.py || echo "돈 자료 실패"
+      - name: 반응·출시·검색량
+        if: github.event.schedule != '20 7 * * *'
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+        run: python robot/collect_social.py || echo "반응 자료 실패"
+      - name: 저장소에 올리기
+        run: |
+          git config user.name "consumer-robot"
+          git config user.email "robot@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet && echo "변경 없음" && exit 0
+          git commit -q -m "모으기: $(TZ=Asia/Seoul date '+%m월 %d일 %H시')"
+          for i in 1 2 3; do (git pull -q --rebase -X theirs --autostash || (git rebase --abort; false)) && git push -q && break || sleep 10; done

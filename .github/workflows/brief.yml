@@ -1,0 +1,50 @@
+name: 아침 브리핑 (뷰티 · 폰게임)
+
+on:
+  schedule:
+    - cron: "15 21 * * *"   # 한국시간 06:15
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/kick/brief']   # 이 파일을 바꿔 올리면 바로 한 번 돌림
+
+concurrency:
+  group: data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -q json-repair || true
+      - name: 브리핑 쓰기
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MONTHLY_USD: ${{ vars.CLAUDE_MONTHLY_USD }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python robot/brief.py
+      - name: 이달의 소비 분위기 (매달 1일)
+        if: always()
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MONTHLY_USD: ${{ vars.CLAUDE_MONTHLY_USD }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python robot/monthly.py || echo "이달 글 실패"
+      - name: 저장소에 올리기
+        if: always()
+        run: |
+          git config user.name "consumer-robot"
+          git config user.email "robot@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet && echo "변경 없음" && exit 0
+          git commit -q -m "브리핑: $(TZ=Asia/Seoul date '+%m월 %d일')"
+          for i in 1 2 3; do (git pull -q --rebase -X theirs --autostash || (git rebase --abort; false)) && git push -q && break || sleep 10; done
