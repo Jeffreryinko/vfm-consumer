@@ -1,0 +1,40 @@
+name: 사이트 올리기
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["모으기 (뉴스 하루 2번 · 순위·주가·경제·반응 하루 1번)", "아침 브리핑 (뷰티 · 폰게임)"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.d.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: main }
+      - name: 올릴 것만 고르기
+        run: |
+          mkdir -p _site
+          cp -r index.html manifest.webmanifest sw.js assets data _site/
+          rm -f _site/data/_tcache.json _site/data/_dart_corp.json
+          rm -rf _site/data/claude_usage _site/data/rank/hist/202[0-4]*
+          rm -f _site/data/news/beauty.json _site/data/news/game.json
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+      - id: d
+        uses: actions/deploy-pages@v4
