@@ -239,7 +239,7 @@
     var k = INDK[ind];
     if (!b) return '<article class="card" style="margin-top:12px"><div class="kick" style="margin:0">' + INDN[ind] + '</div><p class="mut">첫 브리핑은 다음 날 아침 6시쯤 나옴. 그 전엔 순위·배움부터 둘러보면 됨.</p><button class="btn" data-go="#/' + k + '/rank">순위 보기</button></article>';
     var lines = (b.items || []).slice(0, 3);
-    return '<div class="hero ' + ind + ' tap" style="margin-top:12px" data-go="#/' + k + '"><div class="d">' + INDN[ind] + " 브리핑 · " + esc(b.label || "") + "</div>" +
+    return '<div class="hero ' + ind + ' tap" style="margin-top:12px" data-go="#/' + k + '"><div class="d">' + INDN[ind] + " 브리핑 · " + kday(b.id) + "</div>" +
       '<h1 style="font-size:20px">' + esc((b.lead || "").split(/(?<=[.다음함임])\s/)[0]) + "</h1>" +
       lines.map(function (x, i) { return '<p style="font-size:15px;margin-top:6px">' + (i + 1) + ". " + esc(x.t) + "</p>"; }).join("") + '<div class="by">눌러서 전체 보기 →</div></div>';
   }
