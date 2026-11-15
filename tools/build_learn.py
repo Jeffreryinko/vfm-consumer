@@ -33,6 +33,9 @@ def main():
         for u in o.get("units", []):
             if not (u.get("id") and u.get("t") and u.get("y")): continue
             units.append(u)
+    pick = rj(Path(__file__).resolve().parent / "img_pick.json", {}) or {}
+    for u in units:
+        if u.get("id") in pick: u["img"] = pick[u["id"]]
     seen = set(); U = []
     for u in units:
         if u["id"] in seen: continue
@@ -46,7 +49,9 @@ def main():
         meta = []
         for u in us:
             wj(D / "u" / f"{u['id']}.json", u)
-            meta.append({k: u.get(k) for k in ("id", "t", "sub", "y", "cc", "theme", "short", "events", "cos", "terms")})
+            m = {k: u.get(k) for k in ("id", "t", "sub", "y", "cc", "theme", "short", "events", "cos", "terms")}
+            if u.get("img"): m["th"] = u["img"]["thumb"] if "unscaled" in u["img"]["thumb"] else re.sub(r"/\d+px-", "/330px-", u["img"]["thumb"])
+            meta.append(m)
             idx[ind]["hist"][u["id"]] = u["t"]
         courses = []
         if us:

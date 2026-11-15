@@ -241,7 +241,8 @@
     var lines = (b.items || []).slice(0, 3);
     return '<div class="hero ' + ind + ' tap" style="margin-top:12px" data-go="#/' + k + '"><div class="d">' + INDN[ind] + " 브리핑 · " + kday(b.id) + "</div>" +
       '<h1 style="font-size:20px">' + esc((b.lead || "").split(/(?<=[.다음함임])\s/)[0]) + "</h1>" +
-      lines.map(function (x, i) { return '<p style="font-size:15px;margin-top:6px">' + (i + 1) + ". " + esc(x.t) + "</p>"; }).join("") + '<div class="by">눌러서 전체 보기 →</div></div>';
+      lines.map(function (x, i) { return '<p style="font-size:15px;margin-top:6px">' + (i + 1) + ". " + esc(x.t) + "</p>"; }).join("") +
+      (function () { var ps = (b.items || []).filter(function (x) { return x.img; }).slice(0, 3); return ps.length ? '<div class="pics">' + ps.map(function (x) { return '<img loading="lazy" src="' + esc(x.img) + '" alt="" onerror="this.remove()">'; }).join("") + "</div>" : ""; })() + '<div class="by">눌러서 전체 보기 →</div></div>';
   }
   function homeMovers(rk) {
     if (!rk) return "";
@@ -292,7 +293,7 @@
       h += '<div class="chips" style="margin:10px 0 0"><button class="chip" data-act="speak" data-sel="#main">' + "🔊 소리로 듣기</button><button class=\"chip\" data-act=\"share-brief\" data-ind=\"" + ind + "\">공유</button><button class=\"chip\" data-act=\"past\" data-ind=\"" + ind + "\">지난 브리핑</button></div>";
       h += '<h2 class="h2">오늘의 이슈 <small>' + (b.items || []).length + "개</small></h2>";
       h += (b.items || []).map(function (x, i) {
-        return '<article class="card issue tap' + (seen[b.id + ":" + i] ? " read" : "") + '" data-act="issue" data-ind="' + ind + '" data-i="' + i + '"><div class="n">' + (i + 1) + (x.tag ? " · " + esc(x.tag) : "") + "</div><h3>" + esc(x.t) + "</h3><p>" + esc(x.one) + '</p><div class="meta">' +
+        return '<article class="card issue tap' + (i === 0 && x.img ? " big" : "") + (seen[b.id + ":" + i] ? " read" : "") + '" data-act="issue" data-ind="' + ind + '" data-i="' + i + '"><div class="n">' + (i + 1) + (x.tag ? " · " + esc(x.tag) : "") + "</div>" + (x.img ? '<img class="thumb" loading="lazy" src="' + esc(x.img) + '" alt="" onerror="this.remove()">' : "") + "<h3>" + esc(x.t) + "</h3><p>" + esc(x.one) + '</p><div class="meta" style="clear:both">' +
           Object.keys(x.cc || {}).slice(0, 5).map(function (c) { return '<span class="pill">' + (FLAG[c] || "") + " " + (CCN[c] || c) + "</span>"; }).join("") + (x.press ? '<span class="pill press">보도자료</span>' : "") + (x.chg ? '<span class="pill new">달라진 점</span>' : "") + "</div></article>";
       }).join("");
       var fix = [];
@@ -314,6 +315,7 @@
   }
   function srcList(src) {
     if (!src || !src.length) return "";
+    if (src.some(function (s) { return s.img; })) return '<div style="margin-top:8px">' + src.map(function (s) { return '<a class="srcpic" href="' + esc(s.url) + '" target="_blank" rel="noopener">' + (s.img ? '<img loading="lazy" src="' + esc(s.img) + '" alt="" onerror="this.remove()">' : "") + '<div class="sm" style="color:var(--ink);line-height:1.4"><b>' + (FLAG[s.cc] || "") + " " + esc(s.src || "출처") + (s.kind === "press" ? " · 보도자료" : "") + "</b><br>" + esc((s.t || "").slice(0, 80)) + "</div></a>"; }).join("") + "</div>";
     return '<div class="src" style="margin-top:10px">' + src.map(function (s) { return (FLAG[s.cc] || "") + " <a href=\"" + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.src || "출처") + "</a>" + (s.kind === "press" ? " (보도자료)" : "") + " — " + esc((s.t || "").slice(0, 70)); }).join("<br>") + "</div>";
   }
   function issueSheet(ind, b, i) {
@@ -321,6 +323,7 @@
     load("companies.json").then(function (cs) {
       var cmap = {}; ((cs && cs.list) || []).forEach(function (c) { cmap[c.id] = c; });
       var h = '<div class="kick">' + INDN[ind] + " 이슈 " + (i + 1) + (x.tag ? " · " + esc(x.tag) : "") + '</div><h2 class="h1" style="font-size:26px">' + esc(x.t) + "</h2>";
+      if (x.img) h += '<img class="ph169" src="' + esc(x.img) + '" alt="" onerror="this.remove()">';
       h += '<article class="card sec">';
       if (x.chg) h += '<div class="fix" style="margin-bottom:12px"><b>어제와 달라진 점</b><p>' + esc(x.chg) + "</p></div>";
       h += "<h4 style=\"margin-top:0\">요약</h4><p>" + linkTerms(esc(x.sum || x.one)) + "</p>";
@@ -523,7 +526,7 @@
         var cf = S("nf:" + ind, "all"), ccs = ["all", "kr", "us", "jp", "cn", "eu", "me"];
         var flt = rest.filter(function (x) { return cf === "all" || ({ eu: ["gb", "fr", "de"], me: ["ae", "sa"], cn: ["cn", "tw"] }[cf] || [cf]).indexOf(x.cc) >= 0; });
         h += '<h2 class="h2">모든 기사 <small>최근 3일 · ' + rest.length + "개</small></h2><div class=\"board-pick\">" + ccs.map(function (c) { return '<button class="chip" data-act="nf" data-ind="' + ind + '" data-c="' + c + '" aria-pressed="' + (c === cf) + '">' + (c === "all" ? "전체" : (FLAG[c] || "") + " " + CCN[c]) + "</button>"; }).join("") + "</div>" +
-          '<div class="list">' + flt.slice(0, 120).map(function (x) { return '<a class="row" href="' + esc(x.url) + '" target="_blank" rel="noopener"><div class="tx"><b>' + esc(x.ko || x.t) + "</b><span>" + (FLAG[x.cc] || "") + " " + esc(x.src) + " · " + (KINDN[x.kind] || "") + " · " + ago(x.at) + "</span></div></a>"; }).join("") + "</div>";
+          '<div class="list">' + flt.slice(0, 120).map(function (x) { return '<a class="row nrow" href="' + esc(x.url) + '" target="_blank" rel="noopener">' + (x.img ? '<img loading="lazy" src="' + esc(x.img) + '" alt="" onerror="this.remove()">' : "") + '<div class="tx"><b>' + esc(x.ko || x.t) + "</b><span>" + (FLAG[x.cc] || "") + " " + esc(x.src) + " · " + (KINDN[x.kind] || "") + " · " + ago(x.at) + "</span></div></a>"; }).join("") + "</div>";
       }
       setMain(h || '<div class="empty">반응 자료가 아직 없음.</div>');
     });
@@ -597,7 +600,7 @@
     h += '<button class="btn ' + (cur[ind] === id ? "" : "pri") + '" data-act="set-course" data-ind="' + ind + '" data-id="' + id + '">' + (cur[ind] === id ? "✓ 지금 이 코스로 배우는 중" : "이 코스로 매일 배우기") + "</button>";
     h += '<div class="list" style="margin-top:14px">' + c.units.map(function (uid, i) {
       var u = U[uid]; if (!u) return "";
-      return '<button class="row" data-go="#/l/u/' + uid + '"><div class="unit-c" style="flex:1"><div class="yr">' + u.y[0] + (u.y[1] !== u.y[0] ? "<br>~" + u.y[1] : "") + '</div><div class="tx"><b>' + (isRead("u", uid) ? "✓ " : "") + esc(u.t) + "</b><span>" + esc(u.sub || u.short.slice(0, 60)) + "</span></div></div>" + ICON.chev + "</button>";
+      return '<button class="row nrow" data-go="#/l/u/' + uid + '">' + (u.th ? '<img loading="lazy" src="' + esc(u.th) + '" alt="" onerror="this.remove()">' : "") + '<div class="unit-c" style="flex:1"><div class="yr">' + u.y[0] + (u.y[1] !== u.y[0] ? "<br>~" + u.y[1] : "") + '</div><div class="tx"><b>' + (isRead("u", uid) ? "✓ " : "") + esc(u.t) + "</b><span>" + esc(u.sub || u.short.slice(0, 60)) + "</span></div></div>" + ICON.chev + "</button>";
     }).join("") + "</div>";
     setMain(h);
   }
@@ -614,6 +617,8 @@
       var cmap = {}; ((r[3] && r[3].list) || []).forEach(function (c) { cmap[c.id] = c; });
       var h = '<div class="two"><div><div class="kick">' + INDN[ind] + " · " + esc(u.theme || "") + " · " + u.y[0] + "~" + u.y[1] + " · " + (u.cc || []).map(function (c) { return (FLAG[c] || "") + " " + (CCN[c] || c); }).join(" ") + "</div>" +
         '<h1 class="h1">' + esc(u.t) + '</h1><p class="mut" style="margin:0;font-size:16px">' + esc(u.sub || "") + "</p>" +
+        (u.img ? '<div class="uhero"><img src="' + esc(u.img.thumb) + '" alt="' + esc(u.img.alt || "") + '"><a class="cr" href="' + esc(u.img.page) + '" target="_blank" rel="noopener">' + esc((u.img.by ? u.img.by + " · " : "") + (u.img.lic || "위키미디어 공용")) + "</a></div>" : "") +
+        unitTimeline(u) +
         '<div class="depth seg" style="max-width:360px">' + [["short", "짧게"], ["mid", "보통"], ["long", "길게"]].map(function (d) { return '<button data-act="depth" data-d="' + d[0] + '" aria-pressed="' + (d[0] === depth) + '">' + d[1] + "</button>"; }).join("") + "</div>" +
         '<div class="chips" style="margin-bottom:10px">' + starBtn({ id: "u:" + id, type: "unit", t: u.t, ref: id }).replace('class="star', 'class="chip star') + '<button class="chip" data-act="speak" data-sel="#ubody">🔊 듣기</button><button class="chip" data-act="share-unit">공유</button></div>' +
         '<article class="card read" id="ubody">' + body + (u.now ? '<div class="fix" style="margin-top:18px"><b>지금과 닮은 장면</b><p>' + esc(u.now) + "</p></div>" : "") + "</article>";
@@ -626,6 +631,19 @@
       setMain(h); window.scrollTo(0, 0);
       $("#main")._unit = u;
     });
+  }
+  function unitTimeline(u) {   // 글 맨 위 그림 연표: 사건을 시간 줄 위에 점으로
+    var ev = (u.events || []).slice().sort(function (a, b) { return a.y - b.y; }); if (ev.length < 2) return "";
+    var y0 = ev[0].y, y1 = ev[ev.length - 1].y, sp = Math.max(1, y1 - y0), W0 = 640, H0 = 96;
+    var x = function (y) { return 20 + (y - y0) / sp * (W0 - 40); };
+    var g = '<line x1="20" x2="' + (W0 - 20) + '" y1="48" y2="48" stroke="var(--fill)" stroke-width="6" stroke-linecap="round"/>';
+    var last = -99;
+    ev.forEach(function (e, i) {
+      var cx = x(e.y), up = i % 2 === 0;
+      g += '<circle cx="' + cx + '" cy="48" r="7" fill="var(--tint)" stroke="var(--card)" stroke-width="2.5"/>';
+      if (cx - last > 44 || i === ev.length - 1) { g += '<text x="' + cx + '" y="' + (up ? 26 : 80) + '" text-anchor="middle" font-size="17" font-weight="800" fill="var(--tint-t)">' + e.y + "</text>"; last = cx; }
+    });
+    return '<div class="card utl" style="padding:10px 12px"><svg viewBox="0 0 ' + W0 + " " + H0 + '" style="width:100%;height:auto;display:block">' + g + '</svg><div class="xs mut" style="display:flex;justify-content:space-between"><span>' + esc(ev[0].t.slice(0, 26)) + "</span><span>" + esc(ev[ev.length - 1].t.slice(0, 26)) + "</span></div></div>";
   }
   function eraFor(eras, cc, y) {
     var R = (eras && eras.regions) || {}; var list = R[cc] || R[{ gb: "eu", fr: "eu", de: "eu", tw: "cn", ww: "us" }[cc]] || [];
@@ -738,7 +756,7 @@
       if (kw.length) {
         var news = [].concat(((r[1] && r[1].items) || []), ((r[2] && r[2].items) || []));
         var hit = news.filter(function (x) { var t = ((x.ko || "") + " " + x.t).toLowerCase(); return kw.some(function (w) { return t.indexOf(w.toLowerCase()) >= 0; }); }).slice(0, 30);
-        h += hit.length ? '<div class="list" style="margin-top:8px">' + hit.map(function (x) { return '<a class="row" href="' + esc(x.url) + '" target="_blank" rel="noopener"><div class="tx"><b>' + esc(x.ko || x.t) + "</b><span>" + (FLAG[x.cc] || "") + " " + esc(x.src) + " · " + ago(x.at) + "</span></div></a>"; }).join("") + "</div>" : '<p class="note">최근 3일 기사엔 아직 없음.</p>';
+        h += hit.length ? '<div class="list" style="margin-top:8px">' + hit.map(function (x) { return '<a class="row nrow" href="' + esc(x.url) + '" target="_blank" rel="noopener">' + (x.img ? '<img loading="lazy" src="' + esc(x.img) + '" alt="" onerror="this.remove()">' : "") + '<div class="tx"><b>' + esc(x.ko || x.t) + "</b><span>" + (FLAG[x.cc] || "") + " " + esc(x.src) + " · " + ago(x.at) + "</span></div></a>"; }).join("") + "</div>" : '<p class="note">최근 3일 기사엔 아직 없음.</p>';
       }
       h += '<h2 class="h2">관심 회사</h2>' + (fo.length ? '<div class="list">' + fo.map(function (id) { var c = cmap[id]; return c ? '<button class="row" data-co="' + id + '"><div class="tx"><b>★ ' + esc(c.n) + "</b><span>" + esc(c.sub) + "</span></div>" + ICON.chev + "</button>" : ""; }).join("") + "</div>" : '<div class="card mut sm">회사 화면에서 "관심 회사로 따라가기"를 누르면 여기 모이고, 브리핑에 나오면 알려 줌.</div>');
       h += '<h2 class="h2">별표 <small>' + st.length + "개</small></h2>" + (st.length ? '<div class="list">' + st.map(function (x) {
