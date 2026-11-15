@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import io
+import re
 import json
 import os
 import sys
@@ -198,7 +199,7 @@ def customs():
     y0, y1 = 2012, C.now().year
     for hs in ("3304", "3303", "3305"):
         for y in range(y0, y1 + 1):
-            if str(y) in CC.get(hs, {}) and y < y1 - 1: continue   # 지난 해는 한 번만
+            if str(y) in CC.get("_done", {}).get(hs, {}) and y < y1 - 1: continue   # 지난 해는 한 번만
             url = ("https://apis.data.go.kr/1220000/nitemtrade/getNitemtradeList?serviceKey=" + urllib.parse.quote(key, safe="")
                    + f"&strtYymm={y}01&endYymm={y}12&hsSgn={hs}")
             try:
@@ -206,13 +207,17 @@ def customs():
             except Exception:
                 url = url.replace("/nitemtrade/getNitemtradeList", "/Itemtrade/getItemtradeList"); xml = C.get(url, timeout=40)
             root = ET.fromstring(xml)
+            mon, ccy = {}, {}
             for it in root.iter("item"):
                 ym = (it.findtext("year") or "").replace(".", "-")[:7]
-                cc = (it.findtext("statCd") or it.findtext("statCdCntnKor1") or "").strip()
+                if not re.match(r"\d{4}-\d{2}$", ym): continue          # '총계' 줄은 건너뜀
                 v = float(it.findtext("expDlr") or 0)
-                if not ym or ym.startswith("총"): continue
-                if len(ym) == 7: M.setdefault(hs, {})[ym] = M.get(hs, {}).get(ym, 0) + v if cc else v
-                if cc: CC.setdefault(hs, {}).setdefault(str(y), {})[cc] = CC.get(hs, {}).get(str(y), {}).get(cc, 0) + v
+                mon[ym] = mon.get(ym, 0) + v                              # 세부 품목(10자리)이 여러 줄이면 더함
+                cc = (it.findtext("statCd") or "").strip()
+                if cc: ccy[cc] = ccy.get(cc, 0) + v
+            if mon: M.setdefault(hs, {}).update(mon)
+            if ccy: CC.setdefault(hs, {})[str(y)] = ccy
+            CC.setdefault("_done", {}).setdefault(hs, {})[str(y)] = 1
     C.wj(path, {"at": C.now().isoformat(timespec="minutes"), "note": "관세청 품목별 수출 (달러). 3304 화장품, 3303 향수, 3305 헤어", "m": M, "cc": CC})
     return sum(len(v) for v in M.values())
 

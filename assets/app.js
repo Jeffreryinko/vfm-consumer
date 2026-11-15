@@ -84,7 +84,7 @@
     return '<svg class="spark" viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none"><polyline fill="none" stroke="' + c + '" stroke-width="1.8" stroke-linejoin="round" vector-effect="non-scaling-stroke" points="' + pts.join(" ") + '"/></svg>';
   }
   function lineChart(series, opt) {   // series: [{name, color, pts:[[label, v]]}]
-    opt = opt || {}; var W0 = 640, H0 = opt.h || 220, L = 44, R = 10, T = 14, B = 26;
+    opt = opt || {}; var W0 = Math.max(340, Math.min(720, innerWidth - 64)), H0 = Math.round((opt.h || 220) * (W0 < 500 ? 0.9 : 1)), L = 46, R = 10, T = 14, B = 26;
     var labels = []; series.forEach(function (s) { s.pts.forEach(function (p) { if (labels.indexOf(p[0]) < 0) labels.push(p[0]); }); }); labels.sort();
     if (labels.length < 2) return '<div class="empty">아직 그릴 자료가 없음</div>';
     var all = []; series.forEach(function (s) { s.pts.forEach(function (p) { all.push(p[1]); }); });
@@ -288,7 +288,7 @@
       var b = r[0];
       if (!b) return setMain('<div class="empty">아직 브리핑이 없음.<br>로봇이 매일 아침 6시쯤 씀. 순위·달력·회사부터 둘러보셈.</div>');
       var seen = S("seen:" + ind, {});
-      var h = '<div class="hero ' + ind + '" style="margin-top:6px"><div class="d">' + kday(b.id) + " · " + INDN[ind] + ' 아침 브리핑</div><h1>오늘의 줄기</h1><p>' + esc(b.lead) + '</p><div class="by">' + esc(b.by || "") + " 정리 · " + ago(b.at) + "</div></div>";
+      var h = '<div class="hero ' + ind + '" style="margin-top:6px"><div class="d">' + kday(b.id) + " · " + INDN[ind] + ' 아침 브리핑</div><h1>오늘의 줄기</h1><p>' + esc(b.lead) + '</p><div class="by">' + esc({ claude: "Claude", gemini: "Gemini", groq: "Groq" }[(b.by || "").toLowerCase()] || b.by || "") + " 정리 · " + ago(b.at) + "</div></div>";
       h += '<div class="chips" style="margin:10px 0 0"><button class="chip" data-act="speak" data-sel="#main">' + "🔊 소리로 듣기</button><button class=\"chip\" data-act=\"share-brief\" data-ind=\"" + ind + "\">공유</button><button class=\"chip\" data-act=\"past\" data-ind=\"" + ind + "\">지난 브리핑</button></div>";
       h += '<h2 class="h2">오늘의 이슈 <small>' + (b.items || []).length + "개</small></h2>";
       h += (b.items || []).map(function (x, i) {
@@ -397,11 +397,13 @@
       ((r[0] && r[0].items) || []).forEach(function (e) { ev.push({ d: e.d, t: e.t, k: "소식", src: e.src }); });
       ((r[3] && r[3].items) || []).forEach(function (e) { ev.push({ d: e.d, t: e.n, k: "출시", sub: [e.p.join("·"), (e.by || []).join(", "), (e.g || []).join(", ")].filter(Boolean).join(" · "), img: e.img, hype: e.hype }); });
       var today = day(); ev = ev.filter(function (e) { return e.d >= day(-1); }).sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : (b.hype || 0) - (a.hype || 0); });
-      var h = '<h2 class="h2">다가오는 일정</h2>';
+      var hyped = ev.filter(function (e) { return e.k === "출시" && (e.hype || 0) >= 2; }).sort(function (a, b) { return b.hype - a.hype; }).slice(0, 8);
+      var h = hyped.length ? '<h2 class="h2">기대작 <small>IGDB 관심도 순</small></h2><div class="list">' + hyped.map(function (e) { return '<div class="rk">' + rankImg(e) + '<div class="tx"><b>' + esc(e.t) + "</b><span>" + esc(kday(e.d) + " · " + (e.sub || "")) + "</span></div></div>"; }).join("") + "</div>" : "";
+      h += '<h2 class="h2">다가오는 일정</h2>';
       if (!ev.length) h += '<div class="empty">아직 모은 일정이 없음. 브리핑 로봇이 기사에서 날짜를 찾아 채우고' + (ind === "game" ? ", 출시 예정 게임은 IGDB에서 가져옴." : ".") + "</div>";
       var by = {}; ev.slice(0, 160).forEach(function (e) { (by[e.d] = by[e.d] || []).push(e); });
       Object.keys(by).forEach(function (d) {
-        h += '<div class="kick">' + kday(d) + (d === today ? " · 오늘" : "") + '</div><div class="list" style="margin-top:6px">' + by[d].slice(0, 14).map(function (e) {
+        h += '<div class="kick">' + kday(d) + (d === today ? " · 오늘" : "") + '</div><div class="list" style="margin-top:6px">' + by[d].filter(function (e, i) { return e.k !== "출시" || i < 5 || (e.hype || 0) > 0; }).slice(0, 10).map(function (e) {
           return '<div class="rk">' + (e.img ? rankImg(e) : '<div class="ph" style="display:grid;place-items:center;font-size:20px">' + (e.k === "출시" ? "🎮" : "📌") + "</div>") + '<div class="tx"><b>' + esc(e.t) + "</b><span>" + esc(e.k + (e.sub ? " · " + e.sub : "") + (e.src && e.src[0] ? " · " + e.src[0].src : "")) + "</span></div></div>";
         }).join("") + "</div>";
       });
@@ -669,10 +671,10 @@
       var h = '<div class="seg" style="margin-top:8px;max-width:320px"><button data-go="#/l/tl/beauty" aria-pressed="' + (ind === "beauty") + '">뷰티</button><button data-go="#/l/tl/game" aria-pressed="' + (ind === "game") + '">폰게임</button></div>';
       h += '<div class="board-pick" style="margin-top:10px">' + ["kr", "us", "jp", "cn", "eu", "me"].map(function (c) { return '<button class="chip" data-act="tlreg" data-c="' + c + '" aria-pressed="' + (c === reg) + '">' + FLAG[c] + " " + CCN[c] + " 상황</button>"; }).join("") + "</div>";
       if (!ev.length) h += '<div class="empty">역사 글이 채워지면 연표가 생김.</div>';
-      var dec = {}; ev.forEach(function (e) { var d = Math.floor(e.y / 10) * 10; (dec[d] = dec[d] || []).push(e); });
+      var dec = {}; ev.forEach(function (e) { var d = e.y < 1900 ? 1890 : Math.floor(e.y / 10) * 10; (dec[d] = dec[d] || []).push(e); });
       Object.keys(dec).sort().forEach(function (d) {
-        d = +d; var e = eraFor(eras, reg, d + 5) || eraFor(eras, reg, d);
-        h += '<div class="two" style="margin-top:6px"><div><div class="tl"><div class="dec">' + d + "년대</div>" + dec[d].map(function (x) { return '<div class="ev tap" data-go="#/l/u/' + x.u + '"><b>' + x.y + (x.m ? "." + x.m : "") + "</b>" + esc(x.t) + ' <span class="mut xs">' + (FLAG[x.cc] || "") + "</span></div>"; }).join("") + "</div></div>" +
+        d = +d; var e = d === 1890 ? null : eraFor(eras, reg, d + 5) || eraFor(eras, reg, d);
+        h += '<div class="two" style="margin-top:6px"><div><div class="tl"><div class="dec">' + (d === 1890 ? "1900년 이전" : d + "년대") + "</div>" + dec[d].map(function (x) { return '<div class="ev tap" data-go="#/l/u/' + x.u + '"><b>' + x.y + (x.m ? "." + x.m : "") + "</b>" + esc(x.t) + ' <span class="mut xs">' + (FLAG[x.cc] || "") + "</span></div>"; }).join("") + "</div></div>" +
           "<aside>" + (e ? '<div class="ctxbox" style="margin-top:22px"><h4>' + FLAG[reg] + " " + esc(e.t) + "</h4><p style=\"margin:0 0 6px\">" + esc(e.econ) + '</p><p class="mut" style="margin:0">' + esc(e.mood) + "</p>" + ((e.words || []).length ? '<div class="chips" style="margin-top:8px">' + e.words.map(function (w) { return '<span class="pill">' + esc(w) + "</span>"; }).join("") + "</div>" : "") + "</div>" : "") + "</aside></div>";
       });
       setMain(h);
