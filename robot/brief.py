@@ -230,6 +230,20 @@ def run(ind, dry=False):
     C.wj(D / "latest.json", doc); C.wj(D / f"{doc['id']}.json", doc)
     for p in sorted(D.glob("20*.json"))[:-60]: p.unlink()
     C.log(f"{ind}: 브리핑 저장 · {len(items)}개 · {who}")
+    # 알림 쪽지 (수파베이스가 15분마다 읽어 감): 아침 브리핑 하나 + 관심 회사가 나온 이슈
+    pp = C.DATA / "push.json"
+    pu = C.rj(pp, {}) or {}
+    cname = {c["id"]: c["n"] for c in cos}
+    other = (C.rj(C.DATA / "brief" / ("game" if ind == "beauty" else "beauty") / "latest.json", {}) or {})
+    tops = [x["t"] for x in items[:2]] + [x["t"] for x in (other.get("items") or [])[:1] if other.get("id") == doc["id"]]
+    pu["brief"] = {"id": f"cs-brief-{doc['id']}", "title": f"☀️ {t.month}월 {t.day}일 뷰티·폰게임 브리핑", "body": " · ".join(tops)[:140], "url": "./"}
+    co = [e for e in pu.get("co", []) if e.get("d") == doc["id"] and not e["id"].startswith(f"cs-co-{ind}-")]
+    for i, x in enumerate(items):
+        if x["cos"]:
+            co.append({"id": f"cs-co-{ind}-{doc['id']}-{i}", "d": doc["id"], "hay": " ".join(cname[c] for c in x["cos"]).lower(),
+                       "body": (x["t"] + " — " + x["one"])[:150], "url": f"./#/{ind[0]}/brief/{i}"})
+    pu["co"] = co[:20]
+    C.wj(pp, pu)
 
 
 def main():

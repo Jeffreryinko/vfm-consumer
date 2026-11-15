@@ -228,6 +228,7 @@
       h += homeLearn();
       if (econ) h += '<h2 class="h2">경제 날씨</h2>' + econCard(econ, bb, gb);
       if (mon && mon.length) h += '<h2 class="h2">이달의 소비 분위기</h2><article class="card tap" data-act="monthly" data-id="' + esc(mon[0].id) + '"><div class="kick" style="margin:0">' + esc(mon[0].id.replace("-", "년 ") + "월") + '</div><div class="h3" style="margin-top:4px">' + esc(mon[0].t) + '</div><p class="mut" style="margin:0">' + esc(mon[0].one || "") + "</p></article>";
+      if (pushOk()) { var on = S("push", []); h += '<h2 class="h2">알림</h2><div class="list">' + PT.map(function (t) { return '<button class="row" data-act="push" data-t="' + t[0] + '"><div class="tx"><b>' + t[1] + "</b><span>" + t[2] + '</span></div><span class="pill' + (on.indexOf(t[0]) >= 0 ? " t" : "") + '">' + (on.indexOf(t[0]) >= 0 ? "켜짐" : "꺼짐") + "</span></button>"; }).join("") + '</div><p class="note">아이폰은 홈 화면에 추가한 앱에서만 알림이 옴.</p>'; }
       h += '<h2 class="h2">다른 자판기</h2><div class="list">' + SITES.map(function (s) { return '<a class="row" href="' + s[0] + '"><div class="tx"><b>' + s[1] + "</b><span>" + s[2] + "</span></div>" + ICON.chev + "</a>"; }).join("") + "</div>";
       h += '<p class="note">오늘 한 것: 카드 ' + (jt.card || 0) + " · 문제 " + (jt.quiz || 0) + " · 끝낸 글 " + (jt.done || 0) + "</p>";
       setMain(h);
@@ -236,7 +237,7 @@
   var SITES = [["../vendingForMe/", "시사 자판기", "시사 · 딜 · AI · 도구"], ["../vfm-story/", "이야기 자판기", "이야기 · 역사 · 뇌 · 책"], ["../vfm-mind/", "사람 자판기", "배댓 · 맨탈"]];
   function homeBrief(ind, b) {
     var k = INDK[ind];
-    if (!b) return '<article class="card" style="margin-top:12px"><div class="kick" style="margin:0">' + INDN[ind] + '</div><p class="mut">첫 브리핑은 다음 날 아침 6시 반에 나옴. 그 전엔 순위·배움부터 둘러보면 됨.</p><button class="btn" data-go="#/' + k + '/rank">순위 보기</button></article>';
+    if (!b) return '<article class="card" style="margin-top:12px"><div class="kick" style="margin:0">' + INDN[ind] + '</div><p class="mut">첫 브리핑은 다음 날 아침 6시쯤 나옴. 그 전엔 순위·배움부터 둘러보면 됨.</p><button class="btn" data-go="#/' + k + '/rank">순위 보기</button></article>';
     var lines = (b.items || []).slice(0, 3);
     return '<div class="hero ' + ind + ' tap" style="margin-top:12px" data-go="#/' + k + '"><div class="d">' + INDN[ind] + " 브리핑 · " + esc(b.label || "") + "</div>" +
       '<h1 style="font-size:20px">' + esc((b.lead || "").split(/(?<=[.다음함임])\s/)[0]) + "</h1>" +
@@ -285,7 +286,7 @@
   function vBrief(ind, arg) {
     Promise.all([load("brief/" + ind + "/latest.json"), loadTerms(), load("companies.json")]).then(function (r) {
       var b = r[0];
-      if (!b) return setMain('<div class="empty">아직 브리핑이 없음.<br>로봇이 매일 아침 6시 반에 씀. 순위·달력·회사부터 둘러보셈.</div>');
+      if (!b) return setMain('<div class="empty">아직 브리핑이 없음.<br>로봇이 매일 아침 6시쯤 씀. 순위·달력·회사부터 둘러보셈.</div>');
       var seen = S("seen:" + ind, {});
       var h = '<div class="hero ' + ind + '" style="margin-top:6px"><div class="d">' + kday(b.id) + " · " + INDN[ind] + ' 아침 브리핑</div><h1>오늘의 줄기</h1><p>' + esc(b.lead) + '</p><div class="by">' + esc(b.by || "") + " 정리 · " + ago(b.at) + "</div></div>";
       h += '<div class="chips" style="margin:10px 0 0"><button class="chip" data-act="speak" data-sel="#main">' + "🔊 소리로 듣기</button><button class=\"chip\" data-act=\"share-brief\" data-ind=\"" + ind + "\">공유</button><button class=\"chip\" data-act=\"past\" data-ind=\"" + ind + "\">지난 브리핑</button></div>";
@@ -357,7 +358,7 @@
     Promise.all([load("rank/latest.json"), load("social/twitch.json"), load("companies.json")]).then(function (r) {
       var B = (r[0] && r[0].boards) || {}, tw = r[1];
       var bs = BOARDS[ind].filter(function (b) { return B[b[0]] || (b[0] === "twitch" && tw) || b[0] === "kb"; });
-      if (!bs.length) return setMain('<div class="empty">순위 로봇이 아직 안 돌았음. 매일 새벽 5시 20분에 모음.</div>');
+      if (!bs.length) return setMain('<div class="empty">순위 로봇이 아직 안 돌았음. 매일 새벽 5시쯤 모음.</div>');
       key = key && bs.some(function (b) { return b[0] === key; }) ? key : S("board:" + ind, bs[0][0]);
       if (!bs.some(function (b) { return b[0] === key; })) key = bs[0][0];
       W("board:" + ind, key);
@@ -770,6 +771,46 @@
     });
   }
 
+  /* ───────── 알림 (수파베이스 무료 푸시, 다른 자판기와 같은 서버) ───────── */
+  var PT = [["cs_brief", "아침 브리핑", "매일 아침 6시쯤 뷰티·게임 브리핑이 나오면"], ["cs_co", "관심 회사 소식", "★한 회사가 브리핑에 나오면"], ["cs_review", "복습 알림", "밤 9시, 복습 3분"]];
+  function pushOk() { return "PushManager" in window && "serviceWorker" in navigator && "Notification" in window && !!(window.VFM_SYNC && window.VFM_SYNC.url); }
+  function rpc(fn, body) {
+    var k = window.VFM_SYNC.key;
+    return fetch(window.VFM_SYNC.url + "/rest/v1/rpc/" + fn, { method: "POST", headers: { apikey: k, Authorization: "Bearer " + k, "Content-Type": "application/json" }, body: JSON.stringify(body || {}) })
+      .then(function (r) { if (!r.ok) throw new Error("서버 " + r.status); return r.json(); });
+  }
+  function b64key(s) { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+  function pushFollow() {
+    if (!pushOk() || S("push", []).indexOf("cs_co") < 0) return;
+    load("companies.json").then(function (cs) {
+      var m = {}; ((cs && cs.list) || []).forEach(function (c) { m[c.id] = c.n; });
+      var names = S("follow", []).map(function (id) { return m[id]; }).filter(Boolean);
+      return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) { if (sub) return rpc("vfm_push_follow", { p_endpoint: sub.endpoint, p_follow: names }); });
+    }).catch(function () { });
+  }
+  function pushToggle(t) {
+    if (Notification.permission === "denied") return toast("브라우저에서 알림이 막혀 있음 — 사이트 설정에서 허용해 주셈");
+    var on = S("push", []).slice(), i = on.indexOf(t), first = !on.length;
+    if (i >= 0) on.splice(i, 1); else on.push(t);
+    Notification.requestPermission().then(function (p) {
+      if (p !== "granted") throw new Error("알림을 허용해야 켤 수 있음");
+      return navigator.serviceWorker.ready;
+    }).then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (sub) {
+        if (sub || !on.length) return sub;
+        return rpc("planner_vapid_public").then(function (key) { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64key(key) }); });
+      });
+    }).then(function (sub) {
+      if (!sub) return;
+      var j = sub.toJSON();
+      return rpc("vfm_push_sub", { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_topics: on, p_ua: navigator.userAgent.slice(0, 200) }).then(function () {
+        if (!on.length) return sub.unsubscribe();
+        if (first) return rpc("vfm_push_test", { p_endpoint: j.endpoint });
+      });
+    }).then(function () { W("push", on); if (on.indexOf("cs_co") >= 0) pushFollow(); toast(i >= 0 ? "알림 끔" : "알림 켬 🔔"); closeSheet(); menuSheet(); })
+      .catch(function (e) { toast(String(e.message || e)); });
+  }
+
   /* ───────── 설정 시트 ───────── */
   function menuSheet() {
     load("status.json").then(function (st) {
@@ -778,10 +819,11 @@
       var h = '<h2 class="h1" style="font-size:26px">설정</h2><div class="list">' +
         (sy && sy.ready ? '<button class="row" data-act="' + (user ? "logout" : "login") + '"><div class="tx"><b>' + (user ? "로그아웃 (" + esc(user.email || "") + ")" : "구글로 로그인 — 폰·PC 기록 이어 보기") + "</b><span>다른 자판기와 같은 계정</span></div></button>" : "") +
         '<button class="row" data-act="rate"><div class="tx"><b>소리 읽기 빠르기</b><span>지금 ' + S("rate", 1.05) + '배</span></div></button></div>';
+      if (pushOk()) { var on = S("push", []); h += '<h2 class="h2">알림</h2><div class="list">' + PT.map(function (t) { return '<button class="row" data-act="push" data-t="' + t[0] + '"><div class="tx"><b>' + t[1] + "</b><span>" + t[2] + '</span></div><span class="pill' + (on.indexOf(t[0]) >= 0 ? " t" : "") + '">' + (on.indexOf(t[0]) >= 0 ? "켜짐" : "꺼짐") + "</span></button>"; }).join("") + '</div><p class="note">아이폰은 홈 화면에 추가한 앱에서만 알림이 옴.</p>'; }
       h += '<h2 class="h2">다른 자판기</h2><div class="list">' + SITES.map(function (s) { return '<a class="row" href="' + s[0] + '"><div class="tx"><b>' + s[1] + "</b><span>" + s[2] + "</span></div>" + ICON.chev + "</a>"; }).join("") + "</div>";
       h += '<h2 class="h2">자료 상태 <small>' + (st ? Object.keys(st).length + "곳 중 " + bad.length + "곳 문제" : "") + "</small></h2>";
       h += bad.length ? '<div class="list">' + bad.slice(0, 40).map(function (k) { var r = st[k]; return '<div class="row"><div class="tx"><b>' + esc(k) + "</b><span>" + esc(r.err || "") + (r.ok ? " · 마지막 성공 " + ago(r.ok) : " · 아직 성공 못 함") + "</span></div></div>"; }).join("") + "</div>" : '<p class="note">모든 출처가 잘 돌고 있음.</p>';
-      h += '<p class="note">브리핑: 매일 06:15 · 뉴스: 05:20, 16:20 · 순위·주가·경제: 05:20. 깨진 출처는 직전 자료를 그대로 보여 줌.</p>';
+      h += '<p class="note">브리핑: 매일 아침 6시 전후 · 뉴스: 새벽 5시쯤·오후 4시 20분 · 순위·주가·경제: 새벽 5시쯤. 깨진 출처는 직전 자료를 그대로 보여 줌.</p>';
       sheet(h);
     });
   }
@@ -806,7 +848,7 @@
     if (act === "share-unit") { var u = $("#main")._unit; return share(u.t, u.short); }
     if (act === "past") return pastSheet(a.dataset.ind);
     if (act === "cof") { W("cof:" + a.dataset.ind, a.dataset.f); return vCos(a.dataset.ind); }
-    if (act === "follow") { var f = S("follow", []), i = f.indexOf(a.dataset.id); if (i >= 0) f.splice(i, 1); else { f.push(a.dataset.id); tick("card"); } W("follow", f); a.textContent = i >= 0 ? "★ 관심 회사로 따라가기" : "관심 회사에서 빼기"; a.classList.toggle("pri", i >= 0); toast(i >= 0 ? "관심 회사에서 뺐음" : "관심 회사로 따라감 ★"); return; }
+    if (act === "follow") { var f = S("follow", []), i = f.indexOf(a.dataset.id); if (i >= 0) f.splice(i, 1); else { f.push(a.dataset.id); tick("card"); } W("follow", f); pushFollow(); a.textContent = i >= 0 ? "★ 관심 회사로 따라가기" : "관심 회사에서 빼기"; a.classList.toggle("pri", i >= 0); toast(i >= 0 ? "관심 회사에서 뺐음" : "관심 회사로 따라감 ★"); return; }
     if (act === "tw") { var s2 = S("tw:" + a.dataset.ind, []), w = a.dataset.w, j = s2.indexOf(w); if (j >= 0) s2.splice(j, 1); else s2.push(w); W("tw:" + a.dataset.ind, s2.slice(-6)); return vMap(a.dataset.ind); }
     if (act === "nf") { W("nf:" + a.dataset.ind, a.dataset.c); return vBuzz(a.dataset.ind); }
     if (act === "depth") { W("depth", a.dataset.d); return vUnit($("#main")._unit.id); }
@@ -830,6 +872,7 @@
     if (act === "kw-add") { var v = ($("#kwin").value || "").trim(); if (!v) return; var k2 = S("kw", []); if (k2.indexOf(v) < 0) k2.push(v); W("kw", k2.slice(-20)); return viewBox(); }
     if (act === "kw-del") { W("kw", S("kw", []).filter(function (x) { return x !== a.dataset.w; })); return viewBox(); }
     if (act === "monthly") return load("brief/monthly/" + a.dataset.id + ".json").then(function (m) { if (!m) return; sheet('<div class="kick">' + esc(m.label) + '</div><h2 class="h1" style="font-size:26px">' + esc(m.t) + '</h2><article class="card read">' + (m.body || []).map(function (p) { return "<p>" + esc(p) + "</p>"; }).join("") + (m.beauty ? "<h3>뷰티</h3><p>" + esc(m.beauty) + "</p>" : "") + (m.game ? "<h3>게임</h3><p>" + esc(m.game) + "</p>" : "") + '<div class="chips">' + (m.words || []).map(function (w) { return '<span class="pill t">' + esc(w) + "</span>"; }).join("") + "</div></article>"); });
+    if (act === "push") return pushToggle(a.dataset.t);
     if (act === "login") return window.vfmSync && window.vfmSync.login();
     if (act === "logout") return window.vfmSync && window.vfmSync.logout();
     if (act === "rate") { var rs = [0.9, 1, 1.05, 1.2, 1.4], cu = S("rate", 1.05); W("rate", rs[(rs.indexOf(cu) + 1) % rs.length]); toast("소리 빠르기 " + S("rate", 1) + "배"); return; }

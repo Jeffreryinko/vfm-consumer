@@ -2,7 +2,7 @@ name: 아침 브리핑 (뷰티 · 폰게임)
 
 on:
   schedule:
-    - cron: "15 21 * * *"   # 한국시간 06:15
+    - cron: "45 20 * * *"   # 한국시간 05:45 (늦어져도 7시 전에 나오게)
   workflow_dispatch:
   push:
     branches: [main]
